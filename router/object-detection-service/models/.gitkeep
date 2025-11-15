@@ -1,0 +1,5 @@
+# Placeholder for trained YOLO model weights
+# After training, copy your best.pt here:
+# cp runs/detect/your_experiment/weights/best.pt ./models/best.pt
+
+# Model will be loaded from this path by ObjectDetector
