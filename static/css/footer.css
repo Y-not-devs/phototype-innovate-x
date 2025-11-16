@@ -1,0 +1,35 @@
+/**
+ * Footer Styles
+ */
+
+.footer {
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    padding: 40px 0;
+}
+
+.footer-content {
+    text-align: center;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.footer-logo svg {
+    width: 28px;
+    height: 28px;
+    color: var(--primary-color);
+}
+
+.footer-text {
+    color: var(--text-light);
+    font-size: 14px;
+}

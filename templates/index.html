@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Inspector | Computer Vision</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 12l-7-4m7 4l7-4m-7 4v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>Digital Inspector</h1>
+                </div>
+                <nav class="nav">
+                    <a href="#demo">Demo</a>
+                    <a href="#features">Features</a>
+                    <a href="#how-it-works">How it Works</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">✨</span>
+                    <span>Document Verification Automation</span>
+                </div>
+                <h2 class="hero-title">Document Recognition with Computer Vision</h2>
+                <p class="hero-description">
+                    Automatically detect and mark signatures, stamps, and QR codes on any construction documents
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo">
+        <div class="container">
+            <div class="section-header">
+                <h3 class="section-title">Try It Now</h3>
+                <p class="section-description">Upload a document and see results in real-time</p>
+            </div>
+
+            <div class="demo-container">
+                <div class="upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <h4>Drag document here</h4>
+                        <p>or click to select a file</p>
+                        <input type="file" id="fileInput" accept="image/*,.pdf" hidden>
+                        <button class="btn-primary" id="chooseFileBtn">
+                            Choose File
+                        </button>
+                        
+                        <!-- Drag overlay -->
+                        <div class="drag-overlay">
+                            <div class="drag-overlay-icon">📥</div>
+                            <div class="drag-overlay-text">Drop your file here</div>
+                        </div>
+                    </div>
+
+                    <div class="image-preview" id="imagePreview">
+                        <canvas id="canvas"></canvas>
+                        <div class="preview-controls">
+                            <button class="btn-secondary" id="resetBtn">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Reset
+                            </button>
+                            <button class="btn-primary" id="analyzeBtn">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Analyze
+                            </button>
+                            <div class="preview-hint hidden" id="previewHint">
+                                💡 <strong>Click canvas</strong> to zoom <span class="preview-hint-icon">🔍</span> or <strong>click detection boxes</strong> for details
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="loading-state" id="loadingState">
+                        <div class="spinner"></div>
+                        <p>Analyzing document...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="results-section" id="resultsSection">
+                    <div class="results-header">
+                        <h4>Analysis Results</h4>
+                        <button class="btn-export" id="exportBtn">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Export JSON
+                        </button>
+                    </div>
+
+                    <div class="results-summary">
+                        <div class="summary-card" id="signaturesCard">
+                            <div class="summary-icon signature-bg">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-count">0</div>
+                                <div class="summary-label">Signatures</div>
+                            </div>
+                        </div>
+
+                        <div class="summary-card" id="stampsCard">
+                            <div class="summary-icon stamp-bg">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-count">0</div>
+                                <div class="summary-label">Stamps</div>
+                            </div>
+                        </div>
+
+                        <div class="summary-card" id="qrCodesCard">
+                            <div class="summary-icon qr-bg">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                                    <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-count">0</div>
+                                <div class="summary-label">QR Codes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="results-details" id="resultsDetails">
+                        <!-- Results will be populated here -->
+                    </div>
+
+                    <!-- Statistics Dashboard -->
+                    <div class="statistics-dashboard" id="statisticsDashboard">
+                        <div class="dashboard-header">
+                            <h4>📊 Statistics Dashboard</h4>
+                            <p>Comprehensive analysis overview</p>
+                        </div>
+
+                        <div class="stats-grid">
+                            <!-- Total Detections -->
+                            <div class="stat-card total-card">
+                                <div class="stat-icon">🎯</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalDetections">0</div>
+                                    <div class="stat-label">Total Detections</div>
+                                </div>
+                            </div>
+
+                            <!-- Coverage -->
+                            <div class="stat-card coverage-card">
+                                <div class="stat-icon">📐</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="coveragePercent">0%</div>
+                                    <div class="stat-label">Document Coverage</div>
+                                </div>
+                            </div>
+
+                            <!-- Confidence -->
+                            <div class="stat-card confidence-card">
+                                <div class="stat-icon">✨</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="avgConfidence">0%</div>
+                                    <div class="stat-label">Avg. Confidence</div>
+                                </div>
+                            </div>
+
+                            <!-- Processing Time -->
+                            <div class="stat-card time-card">
+                                <div class="stat-icon">⚡</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="processingTime">0ms</div>
+                                    <div class="stat-label">Processing Time</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts -->
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <h5>Detection Distribution</h5>
+                                <div class="chart-bars" id="distributionChart">
+                                    <!-- Bar chart will be rendered here -->
+                                </div>
+                            </div>
+
+                            <div class="chart-card">
+                                <h5>Confidence Levels</h5>
+                                <div class="chart-donut" id="confidenceChart">
+                                    <!-- Donut chart will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h3 class="section-title">What We Detect</h3>
+                <p class="section-description">Three key elements of any official document</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon signature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 7h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h4>Signatures</h4>
+                    <p>Detect handwritten signatures with high accuracy on any background</p>
+                    <div class="feature-tags">
+                        <span class="tag">Handwriting</span>
+                        <span class="tag">AI Detection</span>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon stamp-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h4>Stamps / Seals</h4>
+                    <p>Recognition of round and rectangular organizational stamps</p>
+                    <div class="feature-tags">
+                        <span class="tag">Round</span>
+                        <span class="tag">Rectangular</span>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon qr-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                            <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                            <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                            <path d="M14 14h7v7h-7v-7z" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <h4>QR Codes</h4>
+                    <p>Find and decode QR codes with licensing and regulatory information</p>
+                    <div class="feature-tags">
+                        <span class="tag">Decoding</span>
+                        <span class="tag">Fast Reading</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h3 class="section-title">How It Works</h3>
+                <p class="section-description">Simple 3-step process</p>
+            </div>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">01</div>
+                    <div class="step-content">
+                        <h4>Upload Document</h4>
+                        <p>Drag an image or PDF document into the upload area</p>
+                    </div>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">02</div>
+                    <div class="step-content">
+                        <h4>AI Analysis</h4>
+                        <p>Our Computer Vision model processes the document and finds all elements</p>
+                    </div>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">03</div>
+                    <div class="step-content">
+                        <h4>Results Visualization</h4>
+                        <p>Get a marked-up image and JSON with coordinates of all detected objects</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Image Preview Modal with Zoom -->
+    <div class="modal-overlay" id="imagePreviewModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Image Preview</h3>
+                <button class="modal-close" id="closeModal">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="image-zoom-container" id="zoomContainer">
+                    <canvas id="zoomCanvas"></canvas>
+                </div>
+                <div class="zoom-info">
+                    <span class="zoom-level">Zoom: <span id="zoomLevelText">100%</span></span>
+                    <span class="zoom-hint">💡 Scroll to zoom, drag to pan</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Zoom Out
+                    </button>
+                    <button class="zoom-btn" id="resetZoomBtn" title="Reset Zoom">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Reset
+                    </button>
+                    <button class="zoom-btn" id="zoomInBtn" title="Zoom In">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="11" y1="8" x2="11" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Zoom In
+                    </button>
+                    <button class="zoom-btn zoom-btn-primary" id="fitToScreenBtn" title="Fit to Screen">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Fit to Screen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Digital Inspector</span>
+                </div>
+                <p class="footer-text">© 2025 Digital Inspector. Innovative solution for document verification automation.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
