@@ -1,0 +1,112 @@
+/**
+ * Animations & Utilities
+ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .demo-container {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-title {
+        font-size: 42px;
+    }
+
+    .steps {
+        flex-direction: column;
+    }
+
+    .step-arrow {
+        transform: rotate(90deg);
+    }
+    
+    .modal-container {
+        width: 98%;
+        height: 98%;
+    }
+    
+    .zoom-controls {
+        gap: 8px;
+    }
+    
+    .zoom-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 32px;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .results-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .nav {
+        display: none;
+    }
+
+    .hero-title {
+        font-size: 32px;
+    }
+
+    .hero-description {
+        font-size: 16px;
+    }
+    
+    .modal-header {
+        padding: 16px;
+    }
+    
+    .modal-title {
+        font-size: 18px;
+    }
+    
+    .modal-footer {
+        padding: 16px;
+    }
+    
+    .zoom-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .zoom-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .zoom-info {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+    }
+    
+    .notification {
+        min-width: auto;
+        max-width: calc(100% - 40px);
+        right: 20px;
+        left: 20px;
+    }
+}
