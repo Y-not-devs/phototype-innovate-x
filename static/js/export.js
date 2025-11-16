@@ -3,6 +3,8 @@
  * Handles exporting detection results to JSON
  */
 
+import { showSuccess, showInfo } from './notifications.js';
+
 const exportBtn = document.getElementById('exportBtn');
 const canvas = document.getElementById('canvas');
 
@@ -51,7 +53,11 @@ function handleExport() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `detection_results_${Date.now()}.json`;
+    const filename = `detection_results_${Date.now()}.json`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+    
+    // Show success notification
+    showSuccess(`Export successful! Downloaded "${filename}"`, 5000);
 }

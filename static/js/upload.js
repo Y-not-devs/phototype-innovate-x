@@ -5,6 +5,7 @@
 
 import { setCurrentImage, setCurrentFile } from './state.js';
 import { displayImage } from './canvas.js';
+import { showInfo, showError, showWarning } from './notifications.js';
 
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
@@ -68,11 +69,19 @@ function handleFileInputChange(e) {
  */
 export function handleFileSelect(file) {
     if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        showError('Invalid file type. Please select an image file (PNG, JPG, etc.)');
+        return;
+    }
+
+    // Check file size (max 64MB as per config)
+    const maxSize = 64 * 1024 * 1024; // 64MB in bytes
+    if (file.size > maxSize) {
+        showWarning('File size exceeds 64MB limit. Please choose a smaller image.');
         return;
     }
 
     setCurrentFile(file);
+    showInfo(`Image "${file.name}" loaded successfully. Click Analyze to start detection.`, 4000);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -83,7 +92,13 @@ export function handleFileSelect(file) {
             uploadArea.style.display = 'none';
             imagePreview.classList.add('active');
         };
+        img.onerror = () => {
+            showError('Failed to load image. The file may be corrupted.');
+        };
         img.src = e.target.result;
+    };
+    reader.onerror = () => {
+        showError('Failed to read file. Please try again.');
     };
     reader.readAsDataURL(file);
 }

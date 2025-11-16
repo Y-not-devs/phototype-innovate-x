@@ -8,7 +8,7 @@ import { analyzeImageWithAPI } from './api.js';
 import { initUploadHandlers } from './upload.js';
 import { drawDetections, clearCanvas } from './canvas.js';
 import { showLoadingState, hideLoadingState } from './loading.js';
-import { showNotification } from './notifications.js';
+import { showSuccess, showError, showInfo, showWarning } from './notifications.js';
 import { displayResults } from './results.js';
 import { initZoomHandlers } from './zoom.js';
 import { initExportHandler } from './export.js';
@@ -112,7 +112,15 @@ async function handleAnalyze() {
             previewHint.classList.remove('hidden');
         }
         
-        showNotification(`Analysis complete! Found ${detections.length} detection(s)`, 'success');
+        // Show success notification with details
+        const detectionTypes = {
+            signature: detections.filter(d => d.type === 'signature').length,
+            stamp: detections.filter(d => d.type === 'stamp').length,
+            qr_code: detections.filter(d => d.type === 'qr_code').length
+        };
+        
+        const detailMsg = `Found ${detections.length} detection(s): ${detectionTypes.signature} signature(s), ${detectionTypes.stamp} stamp(s), ${detectionTypes.qr_code} QR code(s)`;
+        showSuccess(detailMsg, 6000);
         
         // Smooth scroll to results
         setTimeout(() => {
@@ -122,7 +130,7 @@ async function handleAnalyze() {
         console.error('Error:', error);
         stopProcessingTimer();
         hideLoadingState(false);
-        showNotification('Error analyzing image. Please try again.', 'error');
+        showError('Failed to analyze image. Please try again or contact support.');
     }
 }
 
