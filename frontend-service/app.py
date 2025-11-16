@@ -1,5 +1,5 @@
 """
-Digital Inspector - Server Initialization
+Phototype - Server Initialization
 Main entry point for the Flask application
 """
 from flask import Flask
@@ -26,6 +26,6 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    print("🚀 Starting Digital Inspector...")
+    print("🚀 Starting Phototype...")
     print(f"📍 Server available at: http://localhost:{Config.PORT}")
     app.run(debug=Config.DEBUG, host=Config.HOST, port=Config.PORT)

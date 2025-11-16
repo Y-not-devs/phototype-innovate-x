@@ -1,5 +1,5 @@
 """
-Configuration settings for the Digital Inspector application
+Configuration settings for the Phototype application
 """
 
 class Config:

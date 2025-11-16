@@ -1,5 +1,5 @@
 """
-API routes for the Digital Inspector application
+API routes for the Phototype application
 """
 from flask import render_template, request, jsonify
 import cv2
@@ -77,5 +77,5 @@ def register_routes(app):
         """Server health check"""
         return jsonify({
             'status': 'healthy',
-            'message': 'Digital Inspector API is running'
+            'message': 'Phototype API is running'
         }), 200

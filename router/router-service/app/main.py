@@ -1,6 +1,8 @@
 import os
 import asyncio
+import logging
 import aiohttp
+from aiohttp import ClientTimeout
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -9,6 +11,13 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Router Service", version="1.0.0")
 
@@ -27,8 +36,31 @@ class DocumentAnalysisResponse(BaseModel):
     message: str
 
 @app.get("/healthz")
-def health_check():
-    return {"status": "ok", "service": "router"}
+async def health_check():
+    """Health check endpoint with dependent services status"""
+    services_status = {}
+    
+    # Check preprocessor service
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{PREPROCESSOR_SERVICE_URL}/healthz", timeout=ClientTimeout(total=2)) as resp:
+                services_status["preprocessor"] = "ok" if resp.status == 200 else "error"
+    except Exception:
+        services_status["preprocessor"] = "unavailable"
+    
+    # Check lang-detect service
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{LANG_DETECT_SERVICE_URL}/healthz", timeout=ClientTimeout(total=2)) as resp:
+                services_status["lang_detect"] = "ok" if resp.status == 200 else "error"
+    except Exception:
+        services_status["lang_detect"] = "unavailable"
+    
+    return {
+        "status": "ok",
+        "service": "router",
+        "dependencies": services_status
+    }
 
 @app.post("/analyze-document", response_model=DocumentAnalysisResponse)
 async def analyze_document(file: UploadFile = File(...)):
@@ -38,6 +70,9 @@ async def analyze_document(file: UploadFile = File(...)):
     2. If no text layer, use preprocessor -> OCR -> language detection
     3. Return comprehensive analysis results
     """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
@@ -100,6 +135,7 @@ async def analyze_document(file: UploadFile = File(...)):
 
 async def detect_language_from_pdf(file_content: bytes, filename: str) -> Optional[Dict[str, Any]]:
     """Try to detect language directly from PDF text layer"""
+    logger.info(f"Attempting to detect language from PDF: {filename}")
     try:
         async with aiohttp.ClientSession() as session:
             data = aiohttp.FormData()
@@ -108,7 +144,7 @@ async def detect_language_from_pdf(file_content: bytes, filename: str) -> Option
             async with session.post(
                 f"{LANG_DETECT_SERVICE_URL}/detect-language",
                 data=data,
-                timeout=30
+                timeout=ClientTimeout(total=30)
             ) as response:
                 if response.status == 200:
                     result = await response.json()
@@ -131,7 +167,7 @@ async def detect_language_from_text(text: str) -> Optional[Dict[str, Any]]:
             async with session.post(
                 f"{LANG_DETECT_SERVICE_URL}/detect-text",
                 json=payload,
-                timeout=30
+                timeout=ClientTimeout(total=30)
             ) as response:
                 if response.status == 200:
                     result = await response.json()
@@ -144,6 +180,7 @@ async def detect_language_from_text(text: str) -> Optional[Dict[str, Any]]:
 
 async def preprocess_pdf(file_content: bytes, filename: str) -> Optional[Dict[str, Any]]:
     """Preprocess PDF using the preprocessor service"""
+    logger.info(f"Preprocessing PDF: {filename}")
     try:
         async with aiohttp.ClientSession() as session:
             data = aiohttp.FormData()
@@ -152,7 +189,7 @@ async def preprocess_pdf(file_content: bytes, filename: str) -> Optional[Dict[st
             async with session.post(
                 f"{PREPROCESSOR_SERVICE_URL}/preprocess/",
                 data=data,
-                timeout=60
+                timeout=ClientTimeout(total=60)
             ) as response:
                 if response.status == 200:
                     result = await response.json()

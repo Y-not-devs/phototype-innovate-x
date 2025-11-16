@@ -1,5 +1,5 @@
 /**
- * Digital Inspector - Main Application
+ * Phototype - Main Application
  * Entry point that coordinates all modules
  */
 
@@ -31,7 +31,7 @@ window.appState = state;
  * Initialize the application
  */
 function init() {
-    console.log('🚀 Initializing Digital Inspector...');
+    console.log('🚀 Initializing Phototype...');
     
     // Initialize all modules
     initUploadHandlers();
@@ -45,7 +45,7 @@ function init() {
     // Setup event handlers
     setupEventHandlers();
     
-    console.log('✅ Digital Inspector loaded successfully!');
+    console.log('✅ Phototype loaded successfully!');
     console.log('📄 Ready to analyze documents.');
 }
 

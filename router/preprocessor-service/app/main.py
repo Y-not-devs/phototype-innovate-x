@@ -1,18 +1,27 @@
-import os, sys, math, shutil, subprocess, json
+import os
+import sys
+import math
+import shutil
+import subprocess
+import json
+
 import numpy as np
-from fastapi import FastAPI, UploadFile, File
-from pdf2image import convert_from_bytes
-from pathlib import Path
-from fastapi import FastAPI, UploadFile, File
-from pdf2image import convert_from_path
-from PIL import Image
 import cv2
+from fastapi import FastAPI, UploadFile, File
+from pdf2image import convert_from_bytes, convert_from_path
+from pathlib import Path
+from PIL import Image
 from tempfile import NamedTemporaryFile
 
-app = FastAPI()
+app = FastAPI(title="Preprocessor Service", version="1.0.0")
 
 OUTPUT_DIR = Path("processed")
 OUTPUT_DIR.mkdir(exist_ok=True)
+
+@app.get("/healthz")
+def health_check():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "preprocessor"}
 
 # ───────────────────────────
 # Utility functions (copied from your servcie_1.py)
@@ -78,17 +87,20 @@ def post_cleanup(binary):
                             cv2.MORPH_CLOSE, kernel, iterations=1)
 
 def process_page_image(pil_page):
-    bgr = pil_to_cv2(pil_page)
-    bgr = upscale_if_small_text(bgr, 28)
-    denoised = denoise_image(bgr)
-    gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
-    angle = estimate_skew_angle(gray)
-    if abs(angle) > 0.2:
-        denoised = rotate_image(denoised, angle)
+    try:
+        bgr = pil_to_cv2(pil_page)
+        bgr = upscale_if_small_text(bgr, 28)
+        denoised = denoise_image(bgr)
         gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
-    bin_img = adaptive_binarize(gray)
-    bin_img = post_cleanup(bin_img)
-    return cv2.cvtColor(bin_img, cv2.COLOR_GRAY2BGR), angle
+        angle = estimate_skew_angle(gray)
+        if abs(angle) > 0.2:
+            denoised = rotate_image(denoised, angle)
+            gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
+        bin_img = adaptive_binarize(gray)
+        bin_img = post_cleanup(bin_img)
+        return cv2.cvtColor(bin_img, cv2.COLOR_GRAY2BGR), angle
+    except Exception as e:
+        raise RuntimeError(f"Error processing page image: {str(e)}") from e
 
 def process_pdf_file(pdf_path, out_root, dpi=400, poppler_path=None):
     pdf_name = Path(pdf_path).stem
@@ -188,26 +200,44 @@ def segment_page_paragraphs(pil_img, base_name: str, page_num: int):
 
 @app.post("/preprocess/")
 async def preprocess(file: UploadFile = File(...)):
+    if not file.filename:
+        raise ValueError("Filename is required")
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise ValueError("Only PDF files are supported")
+    
     pdf_bytes = await file.read()
-    images = convert_from_bytes(pdf_bytes)
+    
+    if not pdf_bytes:
+        raise ValueError("File is empty")
+    
+    try:
+        images = convert_from_bytes(pdf_bytes)
+    except Exception as e:
+        raise RuntimeError(f"Error converting PDF: {str(e)}") from e
 
-    all_blocks, all_files = [], []
-    base_name = Path(file.filename).stem
+    try:
+        all_blocks, all_files = [], []
+        base_name = Path(file.filename).stem
 
-    for i, img in enumerate(images, start=1):
-        blocks, out_files = segment_page_paragraphs(img, base_name, i)
-        all_blocks.append({"page": i, "blocks": blocks})
-        all_files.extend(out_files)
+        for i, img in enumerate(images, start=1):
+            blocks, out_files = segment_page_paragraphs(img, base_name, i)
+            all_blocks.append({"page": i, "blocks": blocks})
+            all_files.extend(out_files)
 
-    metadata = {
-        "filename": file.filename,
-        "pages": len(images),
-        "segments": all_blocks,
-        "saved_files": all_files
-    }
+        metadata = {
+            "filename": file.filename,
+            "pages": len(images),
+            "segments": all_blocks,
+            "saved_files": all_files,
+            "success": True
+        }
 
-    meta_path = OUTPUT_DIR / f"{base_name}_metadata.json"
-    with open(meta_path, "w") as f:
-        json.dump(metadata, f, indent=2)
+        meta_path = OUTPUT_DIR / f"{base_name}_metadata.json"
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    return metadata
+        return metadata
+    
+    except Exception as e:
+        raise RuntimeError(f"Error during preprocessing: {str(e)}") from e
