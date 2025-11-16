@@ -6,11 +6,16 @@ from aiohttp import ClientTimeout
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional
+import sys
+import shutil
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Add parent directory to path to import cv_pipeline
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +31,7 @@ PREPROCESSOR_SERVICE_URL = "http://127.0.0.1:8001"
 LANG_DETECT_SERVICE_URL = "http://127.0.0.1:8002" 
 OCR_EN_SERVICE_URL = "http://127.0.0.1:8003"
 OCR_RU_SERVICE_URL = "http://127.0.0.1:8004"
+OBJECT_DETECTION_SERVICE_URL = "http://127.0.0.1:8006"
 
 class DocumentAnalysisResponse(BaseModel):
     filename: str
@@ -230,6 +236,173 @@ async def extract_text_with_ocr(preprocessing_data: Dict[str, Any], language: st
         
     except Exception as e:
         return {"success": False, "reason": f"exception: {str(e)}"}
+
+
+@app.post("/analyze-document-cv")
+async def analyze_document_cv(
+    file: UploadFile = File(...),
+    return_annotated: bool = False
+):
+    """
+    Analyze document (image or PDF) for stamps, signatures, and QR codes using CV pipeline.
+    
+    Args:
+        file: Uploaded image or PDF file
+        return_annotated: If True, saves and returns path to annotated image
+    
+    Returns:
+        JSON with detection results and optionally annotated image path
+    """
+    logger.info(f"CV analysis request received for file: {file.filename}")
+    
+    # Validate file type
+    if file.filename:
+        filename_lower = file.filename.lower()
+        allowed_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
+        if not any(filename_lower.endswith(ext) for ext in allowed_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
+            )
+    else:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    
+    temp_input_file = None
+    temp_output_dir = None
+    
+    try:
+        # Import cv_pipeline
+        try:
+            from cv_pipeline import DocumentAnalysisPipeline
+        except ImportError:
+            logger.error("Failed to import cv_pipeline. Make sure it exists in router directory.")
+            raise HTTPException(status_code=500, detail="CV pipeline not available")
+        
+        # Save uploaded file to temporary location
+        temp_input_file = tempfile.NamedTemporaryFile(
+            delete=False, 
+            suffix=Path(file.filename).suffix
+        )
+        
+        # Read and save file content
+        content = await file.read()
+        temp_input_file.write(content)
+        temp_input_file.close()
+        
+        logger.info(f"File saved to temporary location: {temp_input_file.name}")
+        
+        # Create temporary output directory for annotated images
+        temp_output_dir = tempfile.mkdtemp(prefix="cv_analysis_")
+        
+        # Initialize pipeline
+        # Use GPU if available, otherwise CPU
+        pipeline = DocumentAnalysisPipeline(
+            model_path=None,  # Will use mock detector if model not available
+            use_gpu=False  # Change to True if GPU available and configured
+        )
+        
+        logger.info("Starting CV analysis...")
+        
+        # Analyze document
+        # output_dir is passed only if annotated images are requested
+        results = pipeline.analyze_file(
+            file_path=temp_input_file.name,
+            output_dir=temp_output_dir if return_annotated else None
+        )
+        
+        logger.info(f"CV analysis completed. Found {results['total_detections']} objects.")
+        
+        # Prepare response
+        response_data = {
+            "success": True,
+            "filename": file.filename,
+            "file_type": "pdf" if file.filename.lower().endswith('.pdf') else "image",
+            "total_pages": results.get("total_pages", 1),
+            "total_detections": results["total_detections"],
+            "summary": results["summary"],
+            "pages": results["pages"]
+        }
+        
+        # If annotated images requested, include their paths
+        if return_annotated and results.get("annotated_images"):
+            response_data["annotated_images"] = results["annotated_images"]
+            response_data["output_directory"] = temp_output_dir
+            logger.info(f"Annotated images saved to: {temp_output_dir}")
+        
+        return response_data
+        
+    except ImportError as e:
+        logger.error(f"Import error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to import required modules: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"CV analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    
+    finally:
+        # Clean up temporary input file
+        if temp_input_file and os.path.exists(temp_input_file.name):
+            try:
+                os.unlink(temp_input_file.name)
+                logger.info("Temporary input file cleaned up")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp file: {str(e)}")
+        
+        # Note: temp_output_dir is NOT deleted here if annotated images were requested
+        # Frontend should download them, then call a cleanup endpoint
+        # Or implement auto-cleanup after certain time
+
+
+@app.get("/download-annotated/{filename}")
+async def download_annotated_image(filename: str, output_dir: str):
+    """
+    Download annotated image from temporary directory.
+    
+    Args:
+        filename: Name of the annotated image file
+        output_dir: Path to the output directory containing the file
+    
+    Returns:
+        FileResponse with the annotated image
+    """
+    file_path = os.path.join(output_dir, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Annotated image not found")
+    
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="image/png"
+    )
+
+
+@app.post("/cleanup-temp/{output_dir:path}")
+async def cleanup_temp_directory(output_dir: str):
+    """
+    Clean up temporary output directory after downloading annotated images.
+    
+    Args:
+        output_dir: Path to the temporary directory to remove
+    
+    Returns:
+        Success status
+    """
+    try:
+        if os.path.exists(output_dir) and os.path.isdir(output_dir):
+            shutil.rmtree(output_dir)
+            logger.info(f"Cleaned up temporary directory: {output_dir}")
+            return {"success": True, "message": "Directory cleaned up successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Directory not found")
+    
+    except Exception as e:
+        logger.error(f"Cleanup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
 
 # Add CORS middleware
 app.add_middleware(

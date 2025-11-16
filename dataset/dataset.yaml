@@ -1,0 +1,18 @@
+# Dataset configuration for YOLO training
+# Конфигурация датасета для обучения YOLO
+
+# Путь к корневой папке датасета (относительно места запуска train_model.py)
+path: dataset
+
+# Пути к train и validation данным (относительно path)
+train: images/train
+val: images/val
+
+# Количество классов
+nc: 3
+
+# Названия классов (порядок важен!)
+names:
+  0: signature   # Рукописные подписи
+  1: stamp       # Печати организаций
+  2: qr_code     # QR-коды
